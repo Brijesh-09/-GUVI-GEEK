@@ -1,22 +1,39 @@
-node {
-   stage('Get Source') {
-      // copy source code from local file system and test
-      // for a Dockerfile to build the Docker image
-      git ('https://github.com/Brijesh-09/-GUVI-GEEK.git')
-      if (!fileExists("Dockerfile")) {
-         error('Dockerfile missing.')
-      }
-   }
-   stage('Build Docker') {
-       // build the docker image from the source code using the BUILD_ID parameter in image name
-         sh "sudo docker build -t flask-app ."
-   }
-   stage("run docker container"){
-        sh "sudo docker run -p 8000:8000 --name flask-app -d flask-app "
+pipeline {
+    agent any
+    environment {
+        DOCKER_HUB_REPO = "brijeshkori/flask"
+        CONTAINER_NAME = "flask-container"
+        STUB_VALUE = "200"
+        registryCredential = 'brijeshkori'
     }
-    stage('Push image') {
-        withDockerRegistry([ credentialsId: "dockerhubaccount", url: "" ]) {
-        dockerImage.push()
+    stages {
+        stage('Stubs-Replacement'){
+            steps {
+                // 'STUB_VALUE' Environment Variable declared in Jenkins Configuration 
+                echo "STUB_VALUE = ${STUB_VALUE}"
+            }
         }
+        stage('Build') {
+            steps {
+                //  Building new image
+                sh 'docker image build -t $DOCKER_HUB_REPO:latest .'
+                sh 'docker image tag $DOCKER_HUB_REPO:latest $DOCKER_HUB_REPO:$BUILD_NUMBER'
+
+               
+
+                    }
+                } 
+        stage('Deploy') {
+            steps {
+                script{
+                     //  Pushing Image to Repository
+             withCredentials([string(credentialsId: 'brijeshkori', variable: 'dockerhubpwd')]) {
+              sh 'docker login -u brijeshkori -p ${dockerhubpwd}'
+                }
+                 sh 'docker push brijeshkori/flask:latest'
+            }
+        }
+    }    
+        
     }
 }
